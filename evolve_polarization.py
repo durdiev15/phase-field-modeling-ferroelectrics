@@ -8,6 +8,7 @@ from fourier_frequency import fourier_frequencies
 from write_vtk import write_to_vtk3D
 from greens_function import Green_Operator
 from solver import Solve_Piezoelectricity
+from store_hdf5 import Write_to_HDF5
 
 def Evolve_Sponteneous_Polarization_Anisotropic(device:torch.device, FOLDER:str, grid_points:tuple, grid_space:tuple, time:tuple,
                                 elec_field_ext:tuple, eps_ext_applied:tuple, domain_type:str, save_data:str):
@@ -82,6 +83,7 @@ def Evolve_Sponteneous_Polarization_Anisotropic(device:torch.device, FOLDER:str,
         # zero step
         write_to_vtk3D(FOLDER, 0, "Polarization", P.to(torch.device("cpu")),
                             Nx, Ny, Nz, dx, dy, dz)
+        Write_to_HDF5(FOLDER, 0, P.to(torch.device("cpu")))
 
     # Applied external fields --------------------------------------------------
     eps_ext  = torch.zeros((3,3,Nx,Ny,Nz)).to(device)             # applied elas. field
@@ -141,6 +143,7 @@ def Evolve_Sponteneous_Polarization_Anisotropic(device:torch.device, FOLDER:str,
             # --------------------------------------------------------------------
             write_to_vtk3D(FOLDER, step + 1, "Polarization", P.to(torch.device("cpu")),
                                 Nx, Ny, Nz, dx, dy, dz)
+            Write_to_HDF5(FOLDER, 0, P.to(torch.device("cpu")))
         # --------------------------------------------------------------------
         del sigma, D, eps_elas, E
     # ----------------------------------------------------------------------------
@@ -202,7 +205,9 @@ def Evolve_Sponteneous_Polarization_Isotropic(device:torch.device, FOLDER:str, g
     dx = dx/l_scale
     dy = dy/l_scale
     dz = dz/l_scale
-    elec_field_ext[0], elec_field_ext[1], elec_field_ext[2] = elec_field_ext[0]/E_scale, elec_field_ext[1]/E_scale, elec_field_ext[2]/E_scale
+    elec_field_ext[0] = elec_field_ext[0]/E_scale
+    elec_field_ext[1] = elec_field_ext[1]/E_scale
+    elec_field_ext[2] = elec_field_ext[2]/E_scale
     # ----------------------------------------------------------------------------
     C0 = C0.to(device)
     K0 = K0.to(device)
@@ -216,7 +221,9 @@ def Evolve_Sponteneous_Polarization_Isotropic(device:torch.device, FOLDER:str, g
     if save_data == "YES":
         # zero step
         write_to_vtk3D(FOLDER, 0, "Polarization", P.to(torch.device("cpu")),
-                            Nx, Ny, Nz, dx, dy, dz)# ----------------------------------------------------------------------------
+                            Nx, Ny, Nz, dx, dy, dz)
+        Write_to_HDF5(FOLDER, 0, P.to(torch.device("cpu")))
+        # ----------------------------------------------------------------------------
     # Applied external fields --------------------------------------------------
     eps_ext  = torch.zeros((3,3,Nx,Ny,Nz)).to(device)             # applied elas. field
     eps_ext[0, 0] = eps_ext_applied[0] # in x
@@ -263,6 +270,7 @@ def Evolve_Sponteneous_Polarization_Isotropic(device:torch.device, FOLDER:str, g
             # --------------------------------------------------------------------
             write_to_vtk3D(FOLDER, step + 1, "Polarization", P.to(torch.device("cpu")),
                                 Nx, Ny, Nz, dx, dy, dz)
+            Write_to_HDF5(FOLDER, step + 1, P.to(torch.device("cpu")))
             # --------------------------------------------------------------------
         del sigma, D, eps_elas, E
     # ----------------------------------------------------------------------------
