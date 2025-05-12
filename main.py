@@ -4,70 +4,88 @@ import os
 # import resource
 import sys
 
-import evolve_polarization
+from evolve_polarization import Evolve_Sponteneous_Polarization_Isotropic
 
 def main():
 
     print("\n==================== PHASE-FIELD SIMULATIONS =======================\n")
 
-    # Start time
-    start_tm = timeit.default_timer()
-
     # Device agnostic code
-    if torch.cuda.is_available():
-        device = torch.device("cuda")  # Use CUDA device
-        print("CUDA is available. Using GPU.")
-        print(torch.cuda.get_device_name(0))
-    else:
-        device = torch.device("cpu")  # Use CPU
-        print("CUDA is not available. Using CPU.")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # ------------------------- SIMULATIONS PARAMETERS -------------------------
-    grid_points = (120, 120, 1) # (Nx, Ny, Nz)
-    grid_space = (5e-10, 5e-10, 5e-10) # (dx, dy, dz) in [m]
+    # Add the simulation parameters into sim_params dictionary 
+    c_tet = 4.032                         # angstrom
+    a_tet = 3.992                         # angstrom
+    sim_dict = {
 
-    # time parameters: nsteps - number of time steps, nt- time frame to save data
-    time = (100, 10, 1e-13)   # (nsteps, nt, dt), dt is in [sec]
+        # Phase-field parameters:
+        'G': 12e-3,                       # J/m²=N/m Interfacial Energy
+        'l': 1.5E-9,                      # m: Thickness of interface: Length Scale
+        'P0': 0.26,                        # C/m²: Maximum polarization
+        'mob': 26/75*1e3,                   # A/Vm: mobility beta^-1
+        'c_tet': c_tet,
+        'a_tet': a_tet,
+        'eps_spon0':   2*(c_tet-a_tet)/(c_tet+2*a_tet), # spontaneous strain
 
-    # external electric field in each direction
-    elec_field_ext = [0, 0, 0]  # (E_app_x, E_app_y, E_app_z) must be in V/m
+        # Landau polynomial coeffs (dimensionless):
+        'a1': -86/75,
+        'a2': -53/75,
+        'a3': 134/25,
+        'a4': 64/75,
 
-    # external applied strain in each direction
-    eps_ext_applied = [0, 0, 0] # (eps_app_x, eps_app_y, eps_app_z)
+        # Grad and Sep coeffs to adjust the DW energy and width:
+        'k_sep':  0.70,   
+        'k_grad': 0.35,  
 
-    # maximum electric field of the hysteresis loop
-    E_max_loop = (0, 2) # (E, direction) E must be in V/m, direction: x=0, y=1, z=2
+        # Piezoelectric tensor in C/m²:
+        'e31': -0.7,  # C/m²
+        'e33': 6.7,
+        'e15': 34.2,
 
-    # domain_type = "random" OR "90" OR "180" OR "minus_z"
-    domain_type = "random"
+        # Elastic tensor in N/m²
+        'C11': 22.2e10,
+        'C12': 11.1e10,
+        'C44': 6.1e10,
 
-    # saves the results, "YES" or "NO"
-    save_data = "YES"
+        # dielectric constant in C/(Vm)
+        'k': 19.5e-9,
+
+        # Grid parameters:
+        'Nx': 120, 'Ny': 120, 'Nz': 1,
+        'dx': 5e-10, 'dy': 5e-10, 'dz': 5e-10, # spacing in m
+        
+        # Simulation time parameters:
+        'nsteps': 5000,  # total number of time steps
+        'nt': 100,       # time interval to save data
+        'dt': 1e-13,      # time step in s
+
+        # Aplpied electric field in V/m:
+        'E_ext_1': 0, 'E_ext_2': 0, 'E_ext_3': 0,
+
+        # Max electric field for P-E loop:
+        'E_max': 0, # in V/m
+        'E_direc': 2, # in whic direction 0-<100>, 1-<010>, 2-<001> 
+
+        # Applied strain:
+        'eps_ext_11': 0, 'eps_ext_22': 0, 'eps_ext_33': 0,
+        'eps_ext_12': 0, 'eps_ext_13': 0, 'eps_ext_23': 0,
+
+        # Domain type:
+        'domain': "random",
+
+    }
 
     # directory to save results
-    FOLDER = os.getcwd()
+    FOLDER = os.getcwd() + "/results"
+    HDF_RESULTS_FILE = FOLDER + "/results.h5"
+
+    # check if results.h5 exists 
+    if os.path.exists(HDF_RESULTS_FILE):
+        os.remove(HDF_RESULTS_FILE)  # Remove the file
 
     # Evolve
-    evolve_polarization.Evolve_Sponteneous_Polarization_Isotropic(device, FOLDER, grid_points, grid_space, time,
-                                    elec_field_ext, eps_ext_applied, domain_type, save_data)
-    # ----------------------------------------------------------------------------
-    stop_tm = timeit.default_timer()
-    print("\n====================== SIMULATIONS  FINISHED =========================\n")
-    print('Execution time: ' + str( format((stop_tm - start_tm)/60,'.3f')) + ' min' )
-    print('\nSimulation parameters:')
-    print('Grid points = ', grid_points)
-    print('Grid space = ', grid_space)
-    print('Time setup = ', time)
-
-    # Get memory usage after execution in kilobytes
-    # usage_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-
-    # # Convert to megabytes and gigabytes for printing
-    # usage_mb = usage_kb / 1024  # Convert to megabytes
-    # usage_gb = usage_mb / 1024   # Convert to gigabytes
-
-    # print(f"Memory usage: {usage_gb:.4f} GB")  # Print memory usage in GB with two decimal places
-    print("========================================================================")
+    Evolve_Sponteneous_Polarization_Isotropic(device, FOLDER, HDF_RESULTS_FILE, sim_dict)
 
 if __name__ == "__main__":
     main()
